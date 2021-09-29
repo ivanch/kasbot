@@ -17,9 +17,9 @@ Para executar com *keepalive* (manter o servidor vivo com um servidor web):
 ## Comandos
 * `kasino`
     * Toca o famoso SABADAÇO.
-* `shake it`
+* `shakeit`
     * Toca o hit SHAKE IT.
-* `jet music`
+* `jetmusic`
     * NAS PISTAS DO JET MUSIC!
 * `pare`
     * Para de tocar e desconecta.
