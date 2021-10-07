@@ -17,15 +17,13 @@ class Music(commands.Cog):
         self.voice_states = {}
 
     def get_voice_state(self, ctx: commands.Context):
-        state = self.voice_states.get(ctx.guild.id)
-        if state is None:
-            state = VoiceState(self.bot, ctx)
+        state = VoiceState(self.bot, ctx)
 
-            voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
-            if voice_client is not None:
-                state.voice = voice_client
+        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None:
+            state.voice = voice_client
 
-            self.voice_states[ctx.guild.id] = state
+        self.voice_states[ctx.guild.id] = state
 
         return state
 
