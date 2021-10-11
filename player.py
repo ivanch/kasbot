@@ -213,19 +213,31 @@ class Music(commands.Cog):
         A list of these sites can be found here: https://rg3.github.io/youtube-dl/supportedsites.html
         """
 
+        quiet_flag = False
+        flags = ['-q']
+        for flag in flags:
+            if ' ' + flag in search:
+                search = search.replace(' ' + flag, '')
+                if flag == '-q':
+                    quiet_flag = True
+
         if not ctx.voice_state.voice:
             await ctx.invoke(self._join)
 
         async with ctx.typing():
             try:
-                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
+                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop, quiet=quiet_flag)
             except YTDLError as e:
                 await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
             else:
                 song = Song(source)
 
                 await ctx.voice_state.songs.put(song)
-                await ctx.send('Enqueued {}'.format(str(source)))
+
+                if not quiet_flag:
+                    await ctx.send('Enqueued {}'.format(str(source)))
+                else:
+                    await ctx.message.delete()
 
     @_join.before_invoke
     @_play.before_invoke
@@ -233,6 +245,5 @@ class Music(commands.Cog):
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandError('You are not connected to any voice channel.')
 
-        if ctx.voice_client:
-            if ctx.voice_client.channel != ctx.author.voice.channel:
+        if ctx.voice_client and ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
