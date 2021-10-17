@@ -29,6 +29,8 @@ Para executar com *keepalive* (manter o servidor vivo com um servidor web):
 ## Player
 * `-play [url/query]` (`-p`)
     * Toca música do u2b.
+    * Flags:
+        * `-q`: não envia mensagem (e remove o comando)
 * `-stop`
     * Para de tocar.
 * `-leave` (`-disconnect`, `-dc`, `-q`)
