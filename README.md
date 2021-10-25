@@ -2,7 +2,7 @@
 ## Bot do Kasino para o Discord.
 
 ## Executar
-1. Tenha `python3` e `pip3` instalado.
+1. Tenha `python3`, `pip3` e `ffmpeg` instalado.
 2. `git checkout https://github.com/ivanch/kasbot`
 3. `pip3 install -r requirements.txt`
 3. Exporte o token do seu bot com `export TOKEN=[token]`
