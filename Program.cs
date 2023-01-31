@@ -2,7 +2,6 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Kasbot.Services;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TextCommandFramework.Services;
 
