@@ -1,9 +1,15 @@
-﻿using Discord;
+﻿using AngleSharp;
+using Discord;
 using Discord.Audio;
+using Discord.Audio.Streams;
 using Discord.Commands;
 using Discord.WebSocket;
-using NAudio.Wave;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Pipes;
 using YoutubeExplode;
+using YoutubeExplode.Videos.Streams;
 
 namespace Kasbot.Services
 {
@@ -16,48 +22,81 @@ namespace Kasbot.Services
             Clients = new Dictionary<SocketGuild, Media>();
         }
 
-        private async Task<Stream> DownloadAudioFromYoutube(string youtubeUrl)
+        private async Task<string> DownloadAudioFromYoutube(string youtubeUrl)
         {
             var youtube = new YoutubeClient();
             var videoId = await youtube.Search.GetVideosAsync(youtubeUrl).FirstOrDefaultAsync();
             var streamInfoSet = await youtube.Videos.Streams.GetManifestAsync(videoId.Id);
-            var highestAudioStreamInfo = streamInfoSet.GetAudioStreams().OrderByDescending(s => s.Bitrate).FirstOrDefault();
-            var streamVideo = await youtube.Videos.Streams.GetAsync(highestAudioStreamInfo);
-            var memoryStream = new MemoryStream();
-            await streamVideo.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-            return memoryStream;
+            var streamInfo = streamInfoSet.GetAudioOnlyStreams().GetWithHighestBitrate();
+            var streamVideo = await youtube.Videos.Streams.GetAsync(streamInfo);
+            var fileName = $"{videoId.Id}.mp3";
+
+            using (var fileStream = new FileStream(fileName, FileMode.Create))
+            {
+                await streamVideo.CopyToAsync(fileStream);
+            }
+            return fileName;
         }
 
         public async Task Play(SocketCommandContext Context, string arguments)
         {
             IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
 
-            var audioStream = await DownloadAudioFromYoutube(arguments);
-            if (audioStream is null)
-            {
-                await Context.Channel.SendMessageAsync("Failed to download audio from YouTube.");
-                return;
-            }
+            string filename = string.Empty;
 
+            try
+            {
+                filename = await DownloadAudioFromYoutube(arguments);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error while downloading video from YouTube!");
+            }
+            
             var audioClient = await channel.ConnectAsync();
-            using (var mp3Reader = new StreamMediaFoundationReader(audioStream))
+
+            using (var ffmpeg = CreateStream(filename))
+            using (var output = ffmpeg.StandardOutput.BaseStream)
+            using (var discord = audioClient.CreatePCMStream(AudioApplication.Mixed))
             {
-                var audioOut = audioClient.CreatePCMStream(AudioApplication.Music);
-                await audioClient.SetSpeakingAsync(true);
-
-                var media = new Media
+                try
                 {
-                    AudioClient = audioClient,
-                    Message = Context.Message,
-                    Name = "",
-                    AudioOutStream = audioOut,
-                };
-                Clients.Add(Context.Guild, media);
-
-                await mp3Reader.CopyToAsync(audioOut);
-                await audioClient.SetSpeakingAsync(false);
+                    var media = new Media()
+                    {
+                        AudioClient = audioClient,
+                        AudioOutStream = discord,
+                        FileName = filename,
+                        Message = Context.Message,
+                        Name = ""
+                    };
+                    Clients.Add(Context.Guild, media);
+                    await output.CopyToAsync(discord);
+                }
+                finally
+                {
+                    await discord.FlushAsync();
+                    File.Delete(filename);
+                }
             }
+        }
+
+        private Process CreateStream(string filename)
+        {
+            var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-hide_banner -loglevel panic -i {filename} -ac 2 -f s16le -ar 48000 pipe:1",
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true
+            });
+
+            if (process == null || process.HasExited)
+            {
+                throw new Exception("Sorry, ffmpeg killed himself! Bah.");
+            }
+
+            return process;
         }
 
         public async Task Stop(SocketCommandContext Context)
@@ -68,6 +107,7 @@ namespace Kasbot.Services
             var media = Clients[Context.Guild];
             Clients.Remove(Context.Guild);
 
+            File.Delete(media.FileName);
             await Context.Message.DeleteAsync();
             await media.Message.DeleteAsync();
             await media.AudioOutStream.DisposeAsync();
@@ -80,6 +120,7 @@ namespace Kasbot.Services
     public class Media
     {
         public string Name { get; set; }
+        public string FileName { get; set; }
         public IAudioClient AudioClient { get; set; }
         public AudioOutStream AudioOutStream { get; set; }
         public SocketUserMessage Message { get; set; }

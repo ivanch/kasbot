@@ -1,10 +1,7 @@
 using Discord;
-using Discord.Audio;
 using Discord.Commands;
 using Kasbot.Services;
-using NAudio.Wave;
 using TextCommandFramework.Services;
-using YoutubeExplode;
 
 namespace TextCommandFramework.Modules
 {
