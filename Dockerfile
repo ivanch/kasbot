@@ -10,7 +10,7 @@ RUN dotnet build -c Release -o out
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0
-RUN apt update && apt install -y libopus-dev opus-tools
+RUN apt update && apt install -y ffmpeg libopus-dev opus-tools
 WORKDIR /App
 COPY --from=build-env /App/out .
 ENTRYPOINT ["dotnet", "Kasbot.dll"]
