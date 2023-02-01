@@ -1,13 +1,8 @@
-﻿using AngleSharp;
-using Discord;
+﻿using Discord;
 using Discord.Audio;
-using Discord.Audio.Streams;
 using Discord.Commands;
 using Discord.WebSocket;
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.IO.Pipes;
 using YoutubeExplode;
 using YoutubeExplode.Videos.Streams;
 
@@ -42,7 +37,7 @@ namespace Kasbot.Services
         {
             IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
 
-            string filename = string.Empty;
+            string filename;
 
             try
             {
