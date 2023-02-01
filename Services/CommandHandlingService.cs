@@ -37,7 +37,7 @@ namespace TextCommandFramework.Services
                 return;
 
             var argPos = 0;
-            var prefix = "-";
+            var prefix = "!";
 
             //Check if the message sent has the specified prefix
             if (!message.HasStringPrefix(prefix, ref argPos)) return;
