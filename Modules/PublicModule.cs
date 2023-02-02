@@ -50,7 +50,16 @@ namespace TextCommandFramework.Modules
             var user = Context.User;
             if (user.IsBot) return;
 
-            await PlayerService.Stop(Context);
+            await PlayerService.Stop(Context.Guild.Id);
+        }
+
+        [Command("leave", RunMode = RunMode.Async)]
+        public async Task LeaveAsync()
+        {
+            var user = Context.User;
+            if (user.IsBot) return;
+
+            await PlayerService.Stop(Context.Guild.Id);
         }
 
         [Command("guild_only")]

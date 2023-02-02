@@ -28,6 +28,8 @@ namespace TextCommandFramework
                 var client = services.GetRequiredService<DiscordSocketClient>();
 
                 client.Log += LogAsync;
+                client.LoggedIn += () => Client_LoggedIn(client);
+                client.Ready += () => Client_Ready(client);
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
                 await client.LoginAsync(TokenType.Bot, token);
@@ -37,6 +39,34 @@ namespace TextCommandFramework
 
                 await Task.Delay(Timeout.Infinite);
             }
+        }
+
+        private async Task Client_Ready(DiscordSocketClient client)
+        {
+            var announceLoginGuild = ulong.Parse(Environment.GetEnvironmentVariable("ANNOUNCE_LOGIN_GUILD") ?? "0");
+            var announceLoginChannel = ulong.Parse(Environment.GetEnvironmentVariable("ANNOUNCE_LOGIN_CHANNEL") ?? "0");
+
+            if (announceLoginGuild == 0 || announceLoginChannel == 0)
+            {
+                return;
+            }
+
+            var channel = client.GetGuild(announceLoginGuild).GetTextChannel(announceLoginChannel);
+
+            if (channel == null)
+            {
+                Console.WriteLine("Announce channel not found.");
+                return;
+            }
+
+            await channel.SendMessageAsync("@everyone LIVE!");
+        }
+
+        private Task Client_LoggedIn(DiscordSocketClient client)
+        {
+            Console.WriteLine("Successfully logged in!");
+
+            return Task.CompletedTask;
         }
 
         private Task LogAsync(LogMessage log)
