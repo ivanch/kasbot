@@ -79,6 +79,7 @@ jobs:
   deploy:
     name: Update running container
     runs-on: ubuntu-latest
+    needs: build_arm64
 
     steps:
     - uses: actions/checkout@v2
