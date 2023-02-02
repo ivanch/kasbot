@@ -82,8 +82,6 @@ jobs:
     needs: build_arm64
 
     steps:
-    - uses: actions/checkout@v2
-
     - name: Recreate container
       uses: appleboy/ssh-action@v0.1.7
       with:
