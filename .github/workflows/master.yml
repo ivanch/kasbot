@@ -93,6 +93,7 @@ jobs:
         port: ${{ secrets.DEPLOY_PORT }}
         script: |
           cd docker/kasbot
+          docker-compose down
           docker-compose rm
           docker-compose pull
           docker-compose up -d
