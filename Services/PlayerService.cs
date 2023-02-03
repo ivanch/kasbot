@@ -89,7 +89,6 @@ namespace Kasbot.Services
             IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
 
             var audioClient = await channel.ConnectAsync();
-            audioClient.ClientDisconnected += (id) => AudioClient_ClientDisconnected(Context.Guild.Id);
             audioClient.Disconnected += (ex) => AudioClient_ClientDisconnected(Context.Guild.Id);
 
             conn = CreateConnection(audioClient, Context.Guild.Id);
@@ -112,7 +111,7 @@ namespace Kasbot.Services
 
             if (nextMedia == null)
             {
-                Clients[guildId].Queue.Dequeue();
+                Clients[guildId].Queue.Clear();
                 await Stop(guildId);
                 return;
             }
@@ -244,15 +243,10 @@ namespace Kasbot.Services
         {
             try
             {
-                if (media.Message != null)
-                    await media.Message.DeleteAsync();
-            }
-            catch { }
-            try
-            {
                 if (media.PlayMessage != null)
                     await media.PlayMessage.DeleteAsync();
-            } catch { }
+            }
+            catch { }
         }
     }
 
