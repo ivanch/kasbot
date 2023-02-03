@@ -14,6 +14,8 @@ namespace TextCommandFramework.Services
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
 
+        private readonly string CommandPrefix = "!";
+
         public CommandHandlingService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
@@ -22,6 +24,8 @@ namespace TextCommandFramework.Services
 
             _commands.CommandExecuted += CommandExecutedAsync;
             _discord.MessageReceived += MessageReceivedAsync;
+
+            CommandPrefix = Environment.GetEnvironmentVariable("COMMAND_PREFIX") ?? "!";
         }
 
         public async Task InitializeAsync()
@@ -37,10 +41,9 @@ namespace TextCommandFramework.Services
                 return;
 
             var argPos = 0;
-            var prefix = "-";
 
             //Check if the message sent has the specified prefix
-            if (!message.HasStringPrefix(prefix, ref argPos)) return;
+            if (!message.HasStringPrefix(CommandPrefix, ref argPos)) return;
 
             var context = new SocketCommandContext(_discord, message);
             await _commands.ExecuteAsync(context, argPos, _services);
@@ -54,7 +57,11 @@ namespace TextCommandFramework.Services
             if (result.IsSuccess)
                 return;
 
-            await context.Channel.SendMessageAsync($"error: {result}");
+            var message = await context.Channel.SendMessageAsync($"error: {result}");
+
+            await Task.Delay(5_000);
+
+            await message.DeleteAsync();
         }
     }
 }

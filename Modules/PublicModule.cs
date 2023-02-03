@@ -53,6 +53,15 @@ namespace TextCommandFramework.Modules
             await PlayerService.Stop(Context.Guild.Id);
         }
 
+        [Command("skip", RunMode = RunMode.Async)]
+        public async Task SkipAsync()
+        {
+            var user = Context.User;
+            if (user.IsBot) return;
+
+            await PlayerService.Skip(Context.Guild.Id);
+        }
+
         [Command("leave", RunMode = RunMode.Async)]
         public async Task LeaveAsync()
         {

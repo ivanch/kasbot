@@ -5,6 +5,8 @@ using Discord.Rest;
 using Discord.WebSocket;
 using System.Diagnostics;
 using YoutubeExplode;
+using YoutubeExplode.Search;
+using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
 
 namespace Kasbot.Services
@@ -18,12 +20,23 @@ namespace Kasbot.Services
             Clients = new Dictionary<ulong, Connection>();
         }
 
-        private async Task<MemoryStream> DownloadAudioFromYoutube(Media media)
+        private async Task<MemoryStream?> DownloadAudioFromYoutube(Media media)
         {
             var memoryStream = new MemoryStream();
             var youtube = new YoutubeClient();
 
-            var videoId = await youtube.Search.GetVideosAsync(media.Search).FirstOrDefaultAsync();
+            IVideo? videoId = null;
+            
+            if (media.Search.StartsWith("http://") || media.Search.StartsWith("https://"))
+                videoId = await youtube.Videos.GetAsync(media.Search);
+            else
+                videoId = await youtube.Search.GetVideosAsync(media.Search).FirstOrDefaultAsync();
+
+            if (videoId == null)
+            {
+                return null;
+            }
+
             var streamInfoSet = await youtube.Videos.Streams.GetManifestAsync(videoId.Id);
             var streamInfo = streamInfoSet.GetAudioOnlyStreams().GetWithHighestBitrate();
             var streamVideo = await youtube.Videos.Streams.GetAsync(streamInfo);
@@ -65,7 +78,6 @@ namespace Kasbot.Services
             if (Clients.TryGetValue(Context.Guild.Id, out var conn))
             {
                 conn.Queue.Enqueue(media);
-                Console.WriteLine("conn.Queue.Count " + conn.Queue.Count);
                 if (conn.Queue.Count == 1)
                 {
                     await PlayNext(Context.Guild.Id);
@@ -83,7 +95,6 @@ namespace Kasbot.Services
             conn = CreateConnection(audioClient, Context.Guild.Id);
 
             conn.Queue.Enqueue(media);
-            Console.WriteLine("conn.Queue.Count " + conn.Queue.Count);
             if (conn.Queue.Count == 1)
             {
                 await PlayNext(Context.Guild.Id);
@@ -101,15 +112,24 @@ namespace Kasbot.Services
 
             if (nextMedia == null)
             {
+                Clients[guildId].Queue.Dequeue();
                 await Stop(guildId);
                 return;
             }
 
             var mp3Stream = await DownloadAudioFromYoutube(nextMedia);
+
+            if (mp3Stream == null)
+            {
+                await Stop(guildId);
+                return;
+            }
+
             var audioClient = Clients[guildId].AudioClient;
             var ffmpeg = CreateStream();
 
-            nextMedia.PlayMessage = await nextMedia.Message.Channel.SendMessageAsync($"⏯ Playing: {nextMedia.Name} **({nextMedia.Length.Minutes.ToString("00")}:{nextMedia.Length.Seconds:00})**");
+            var message = $"⏯ Playing: {nextMedia.Name} **({nextMedia.Length.TotalMinutes:00}:{nextMedia.Length.Seconds:00})**";
+            nextMedia.PlayMessage = await nextMedia.Message.Channel.SendMessageAsync(message);
 
             Task stdin = new Task(() =>
             {
@@ -120,6 +140,7 @@ namespace Kasbot.Services
                         input.CopyTo(ffmpeg.StandardInput.BaseStream);
                         ffmpeg.StandardInput.Close();
                     }
+                    catch { }
                     finally
                     {
                         input.Flush();
@@ -135,8 +156,10 @@ namespace Kasbot.Services
                 {
                     try
                     {
+                        Clients[guildId].CurrentAudioStream = output;
                         output.CopyTo(discord);
                     }
+                    catch { }
                     finally
                     {
                         discord.Flush();
@@ -184,6 +207,21 @@ namespace Kasbot.Services
             return process;
         }
 
+        public Task Skip(ulong guildId)
+        {
+            if (!Clients.ContainsKey(guildId))
+                return Task.CompletedTask;
+
+            var media = Clients[guildId];
+
+            if (media.CurrentAudioStream == null)
+                return Task.CompletedTask;
+
+            media.CurrentAudioStream.Close();
+
+            return Task.CompletedTask;
+        }
+
         public async Task Stop(ulong guildId)
         {
             if (!Clients.ContainsKey(guildId))
@@ -193,18 +231,35 @@ namespace Kasbot.Services
 
             foreach (var v in media.Queue)
             {
-                await v.Message.DeleteAsync();
-                await v.PlayMessage.DeleteAsync();
+                await RemoveMediaMessages(v);
             }
-            await media.AudioClient.StopAsync();
+
+            if (media.AudioClient != null)
+                await media.AudioClient.StopAsync();
 
             Clients.Remove(guildId);
+        }
+
+        private async Task RemoveMediaMessages(Media media)
+        {
+            try
+            {
+                if (media.Message != null)
+                    await media.Message.DeleteAsync();
+            }
+            catch { }
+            try
+            {
+                if (media.PlayMessage != null)
+                    await media.PlayMessage.DeleteAsync();
+            } catch { }
         }
     }
 
     public class Connection
     {
         public IAudioClient AudioClient { get; set; }
+        public Stream? CurrentAudioStream { get; set; }
         public Queue<Media> Queue { get; set; } = new Queue<Media>();
     }
 
