@@ -68,7 +68,7 @@ namespace TextCommandFramework.Modules
             var user = Context.User;
             if (user.IsBot) return;
 
-            await PlayerService.Stop(Context.Guild.Id);
+            await PlayerService.Leave(Context.Guild.Id);
         }
 
         [Command("guild_only")]

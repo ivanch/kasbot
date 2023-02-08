@@ -5,7 +5,6 @@ using Discord.Rest;
 using Discord.WebSocket;
 using System.Diagnostics;
 using YoutubeExplode;
-using YoutubeExplode.Search;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
 
@@ -20,13 +19,35 @@ namespace Kasbot.Services
             Clients = new Dictionary<ulong, Connection>();
         }
 
-        private async Task<MemoryStream?> DownloadAudioFromYoutube(Media media)
+        private async Task<List<Media>> DownloadPlaylistMetadataFromYoutube(SocketUserMessage message, string search)
         {
-            var memoryStream = new MemoryStream();
+            var list = new List<Media>();
             var youtube = new YoutubeClient();
 
-            IVideo? videoId = null;
-            
+            var playlistInfo = await youtube.Playlists.GetAsync(search);
+            await youtube.Playlists.GetVideosAsync(search).ForEachAsync(videoId =>
+            {
+                var media = new Media();
+
+                media.Name = videoId.Title;
+                media.Length = videoId.Duration ?? new TimeSpan(0);
+                media.VideoId = videoId.Id;
+                media.Message = message;
+
+                list.Add(media);
+            });
+
+            await message.Channel.SendMessageAsync($"Queued **{list.Count}** items from *{playlistInfo.Title}* playlist.");
+
+            return list;
+        }
+
+        private async Task<Media> DownloadMetadataFromYoutube(Media media)
+        {
+            var youtube = new YoutubeClient();
+
+            IVideo? videoId;
+
             if (media.Search.StartsWith("http://") || media.Search.StartsWith("https://"))
                 videoId = await youtube.Videos.GetAsync(media.Search);
             else
@@ -34,19 +55,33 @@ namespace Kasbot.Services
 
             if (videoId == null)
             {
+                return media;
+            }
+
+            media.Name = videoId.Title;
+            media.Length = videoId.Duration ?? new TimeSpan(0);
+            media.VideoId = videoId.Id;
+
+            return media;
+        }
+
+        private async Task<MemoryStream?> DownloadAudioFromYoutube(Media media)
+        {
+            if (media.VideoId == null)
+            {
                 return null;
             }
 
-            var streamInfoSet = await youtube.Videos.Streams.GetManifestAsync(videoId.Id);
+            var memoryStream = new MemoryStream();
+            var youtube = new YoutubeClient();
+
+            var streamInfoSet = await youtube.Videos.Streams.GetManifestAsync((VideoId) media.VideoId);
             var streamInfo = streamInfoSet.GetAudioOnlyStreams().GetWithHighestBitrate();
             var streamVideo = await youtube.Videos.Streams.GetAsync(streamInfo);
             streamVideo.Position = 0;
             
             streamVideo.CopyTo(memoryStream);
             memoryStream.Position = 0;
-
-            media.Name = videoId.Title;
-            media.Length = videoId.Duration.GetValueOrDefault();
 
             return memoryStream;
         }
@@ -77,12 +112,7 @@ namespace Kasbot.Services
 
             if (Clients.TryGetValue(Context.Guild.Id, out var conn))
             {
-                conn.Queue.Enqueue(media);
-                if (conn.Queue.Count == 1)
-                {
-                    await PlayNext(Context.Guild.Id);
-                }
-
+                await Enqueue(Context.Guild.Id, conn, media);
                 return;
             }
 
@@ -92,11 +122,45 @@ namespace Kasbot.Services
             audioClient.Disconnected += (ex) => AudioClient_ClientDisconnected(Context.Guild.Id);
 
             conn = CreateConnection(audioClient, Context.Guild.Id);
+            await Enqueue(Context.Guild.Id, conn, media);
+        }
+
+        private async Task Enqueue(ulong guildId, Connection conn, Media media)
+        {
+            if (media.Search.StartsWith("https://") && media.Search.Contains("playlist?list="))
+            {
+                var startPlay = conn.Queue.Count == 0;
+                var medias = await DownloadPlaylistMetadataFromYoutube(media.Message, media.Search);
+
+                medias.ForEach(m => conn.Queue.Enqueue(m));
+
+                if (startPlay)
+                {
+                    await PlayNext(guildId);
+                }
+
+                return;
+            }
+
+            media = await DownloadMetadataFromYoutube(media);
+
+            if (media.VideoId == null)
+            {
+                var message = await media.Message.Channel.SendMessageAsync($"No video found for \"{media.Search}\".");
+                await Task.Delay(3_000);
+                await message.DeleteAsync();
+                return;
+            }
 
             conn.Queue.Enqueue(media);
             if (conn.Queue.Count == 1)
             {
-                await PlayNext(Context.Guild.Id);
+                await PlayNext(guildId);
+            }
+            else
+            {
+                var message = $"Queued **{media.Name}** *({media.Length.TotalMinutes:00}:{media.Length.Seconds:00})*";
+                media.QueueMessage = await media.Message.Channel.SendMessageAsync(message);
             }
         }
 
@@ -127,8 +191,13 @@ namespace Kasbot.Services
             var audioClient = Clients[guildId].AudioClient;
             var ffmpeg = CreateStream();
 
-            var message = $"⏯ Playing: {nextMedia.Name} **({nextMedia.Length.TotalMinutes:00}:{nextMedia.Length.Seconds:00})**";
+            var message = $"⏯ Playing: **{nextMedia.Name}** *({nextMedia.Length.TotalMinutes:00}:{nextMedia.Length.Seconds:00})*";
             nextMedia.PlayMessage = await nextMedia.Message.Channel.SendMessageAsync(message);
+
+            if (nextMedia.QueueMessage != null)
+            {
+                await nextMedia.QueueMessage.DeleteAsync();
+            }
 
             Task stdin = new Task(() =>
             {
@@ -174,10 +243,10 @@ namespace Kasbot.Services
 
             ffmpeg.Close();
 
-            await nextMedia.Message.DeleteAsync();
             await nextMedia.PlayMessage.DeleteAsync();
 
-            Clients[guildId].Queue.Dequeue();
+            if (Clients[guildId].Queue.Count > 0)
+                Clients[guildId].Queue.Dequeue();
 
             await PlayNext(guildId);
         }
@@ -200,7 +269,7 @@ namespace Kasbot.Services
 
             if (process == null || process.HasExited)
             {
-                throw new Exception("Sorry, ffmpeg killed himself in a tragic accident!");
+                throw new Exception("Sorry, ffmpeg killed itself in a tragic accident!");
             }
 
             return process;
@@ -228,15 +297,15 @@ namespace Kasbot.Services
 
             var media = Clients[guildId];
 
-            foreach (var v in media.Queue)
+            foreach (var v in media.Queue.Skip(1))
             {
                 await RemoveMediaMessages(v);
             }
 
-            if (media.AudioClient != null)
-                await media.AudioClient.StopAsync();
+            media.Queue.Clear();
 
-            Clients.Remove(guildId);
+            if (media.CurrentAudioStream != null)
+                media.CurrentAudioStream.Close();
         }
 
         private async Task RemoveMediaMessages(Media media)
@@ -247,6 +316,20 @@ namespace Kasbot.Services
                     await media.PlayMessage.DeleteAsync();
             }
             catch { }
+        }
+
+        public async Task Leave(ulong guildId)
+        {
+            if (!Clients.ContainsKey(guildId))
+                return;
+
+            await Stop(guildId);
+            var media = Clients[guildId];
+
+            if (media.AudioClient != null)
+                await media.AudioClient.StopAsync();
+
+            Clients.Remove(guildId);
         }
     }
 
@@ -260,9 +343,13 @@ namespace Kasbot.Services
     public class Media
     {
         public string Search { get; set; }
+        
         public string Name { get; set; }
         public TimeSpan Length { get; set; }
+
+        public VideoId? VideoId { get; set; }
         public SocketUserMessage Message { get; set; }
         public RestUserMessage PlayMessage { get; set; }
+        public RestUserMessage? QueueMessage { get; set; }
     }
 }
