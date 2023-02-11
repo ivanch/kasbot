@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Kasbot.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Reflection;
@@ -57,11 +58,7 @@ namespace TextCommandFramework.Services
             if (result.IsSuccess)
                 return;
 
-            var message = await context.Channel.SendMessageAsync($"error: {result}");
-
-            await Task.Delay(5_000);
-
-            await message.DeleteAsync();
+            await context.Channel.SendTemporaryMessageAsync($"Error: {result}");
         }
     }
 }

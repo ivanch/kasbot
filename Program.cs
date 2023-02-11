@@ -9,8 +9,15 @@ namespace TextCommandFramework
 {
     class Program
     {
+        private static string TOKEN = Environment.GetEnvironmentVariable("TOKEN");
+
         static void Main(string[] args)
         {
+            if (TOKEN == null)
+            {
+                throw new Exception("Discord Bot Token was not found.");
+            }
+
             new Program().MainAsync().GetAwaiter().GetResult();
         }
 
@@ -18,12 +25,6 @@ namespace TextCommandFramework
         {
             using (var services = ConfigureServices())
             {
-                var token = Environment.GetEnvironmentVariable("TOKEN");
-
-                if (token == null)
-                {
-                    throw new Exception("Discord Bot Token was not found.");
-                }
 
                 var client = services.GetRequiredService<DiscordSocketClient>();
 
@@ -32,13 +33,19 @@ namespace TextCommandFramework
                 client.Ready += () => Client_Ready(client);
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
-                await client.LoginAsync(TokenType.Bot, token);
-                await client.StartAsync();
+                await Connect(client);
+                client.Disconnected += async (ex) => await Connect(client);
 
                 await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
                 await Task.Delay(Timeout.Infinite);
             }
+        }
+
+        public async Task Connect(DiscordSocketClient client)
+        {
+            await client.LoginAsync(TokenType.Bot, TOKEN);
+            await client.StartAsync();
         }
 
         private async Task Client_Ready(DiscordSocketClient client)
@@ -85,6 +92,7 @@ namespace TextCommandFramework
                 })
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandService>()
+                .AddSingleton<YoutubeService>()
                 .AddSingleton<PlayerService>()
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<HttpClient>()
