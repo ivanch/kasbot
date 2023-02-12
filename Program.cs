@@ -34,7 +34,7 @@ namespace TextCommandFramework
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
                 await Connect(client);
-                client.Disconnected += async (ex) => await Connect(client);
+                //client.Disconnected += async (ex) => await Connect(client);
 
                 await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
