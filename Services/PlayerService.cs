@@ -25,7 +25,8 @@ namespace Kasbot.Services
             IAudioClient audioClient = await channel.ConnectAsync();
 
             audioClient.Disconnected += (ex) => Stop(Context.Guild.Id);
-            
+            audioClient.StreamDestroyed += (ex) => Stop(Context.Guild.Id);
+
             conn.AudioClient = audioClient;
 
             if (Clients.ContainsKey(Context.Guild.Id))

@@ -5,7 +5,7 @@ using TextCommandFramework.Services;
 
 namespace TextCommandFramework.Modules
 {
-    public class PublicModule : ModuleBase<SocketCommandContext>
+    public class PublicModule : ModuleBase<ShardedCommandContext>
     {
         public PictureService PictureService { get; set; }
         public PlayerService PlayerService { get; set; }

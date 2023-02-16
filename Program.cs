@@ -26,26 +26,20 @@ namespace TextCommandFramework
             using (var services = ConfigureServices())
             {
 
-                var client = services.GetRequiredService<DiscordSocketClient>();
+                var client = services.GetRequiredService<DiscordShardedClient>();
 
                 client.Log += LogAsync;
                 client.LoggedIn += () => Client_LoggedIn(client);
-                client.Ready += () => Client_Ready(client);
+                client.ShardReady += (shard) => Client_Ready(shard);
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
-                await Connect(client);
-                //client.Disconnected += async (ex) => await Connect(client);
+                await client.LoginAsync(TokenType.Bot, TOKEN);
+                await client.StartAsync();
 
                 await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
                 await Task.Delay(Timeout.Infinite);
             }
-        }
-
-        public async Task Connect(DiscordSocketClient client)
-        {
-            await client.LoginAsync(TokenType.Bot, TOKEN);
-            await client.StartAsync();
         }
 
         private async Task Client_Ready(DiscordSocketClient client)
@@ -69,7 +63,7 @@ namespace TextCommandFramework
             await channel.SendMessageAsync("@everyone LIVE!");
         }
 
-        private Task Client_LoggedIn(DiscordSocketClient client)
+        private Task Client_LoggedIn(DiscordShardedClient client)
         {
             Console.WriteLine("Successfully logged in!");
 
@@ -88,9 +82,10 @@ namespace TextCommandFramework
             return new ServiceCollection()
                 .AddSingleton(new DiscordSocketConfig
                 {
-                    GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+                    GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
+                    TotalShards = 3
                 })
-                .AddSingleton<DiscordSocketClient>()
+                .AddSingleton<DiscordShardedClient>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<YoutubeService>()
                 .AddSingleton<PlayerService>()

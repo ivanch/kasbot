@@ -12,7 +12,7 @@ namespace TextCommandFramework.Services
     public class CommandHandlingService
     {
         private readonly CommandService _commands;
-        private readonly DiscordSocketClient _discord;
+        private readonly DiscordShardedClient _discord;
         private readonly IServiceProvider _services;
 
         private readonly string CommandPrefix = "!";
@@ -20,7 +20,7 @@ namespace TextCommandFramework.Services
         public CommandHandlingService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
-            _discord = services.GetRequiredService<DiscordSocketClient>();
+            _discord = services.GetRequiredService<DiscordShardedClient>();
             _services = services;
 
             _commands.CommandExecuted += CommandExecutedAsync;
@@ -46,7 +46,7 @@ namespace TextCommandFramework.Services
             //Check if the message sent has the specified prefix
             if (!message.HasStringPrefix(CommandPrefix, ref argPos)) return;
 
-            var context = new SocketCommandContext(_discord, message);
+            var context = new ShardedCommandContext(_discord, message);
             await _commands.ExecuteAsync(context, argPos, _services);
         }
 
