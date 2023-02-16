@@ -1,0 +1,9 @@
+version: "2.1"
+services:
+  kasbot:
+    image: ivanch/kasbot:latest
+    container_name: kasbot
+    environment:
+      - TOKEN=<Your bot token here>
+      - COMMAND_PREFIX=!
+    restart: unless-stopped
