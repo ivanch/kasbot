@@ -24,6 +24,8 @@ namespace TextCommandFramework.Modules
             var user = Context.User;
             if (user.IsBot) return;
 
+            Console.WriteLine("Joining on " + Context.Guild.Name);
+
             string youtubeUrl = text;
             IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
             if (channel is null)

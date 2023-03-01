@@ -18,21 +18,21 @@ namespace Kasbot.Services
             Clients = new Dictionary<ulong, Connection>();
         }
 
-        private async Task<Connection> CreateConnection(SocketCommandContext Context)
+        private async Task<Connection> CreateConnection(ulong guildId, IVoiceChannel voiceChannel)
         {
-            IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
             var conn = new Connection();
-            IAudioClient audioClient = await channel.ConnectAsync();
+            IAudioClient audioClient = await voiceChannel.ConnectAsync(selfDeaf: true);
 
-            audioClient.Disconnected += (ex) => Stop(Context.Guild.Id);
-            audioClient.StreamDestroyed += (ex) => Stop(Context.Guild.Id);
+            audioClient.Disconnected += (ex) => Stop(guildId);
+            audioClient.StreamDestroyed += (ex) => Stop(guildId);
 
             conn.AudioClient = audioClient;
+            conn.AudioChannel = voiceChannel;
 
-            if (Clients.ContainsKey(Context.Guild.Id))
-                Clients.Remove(Context.Guild.Id);
+            if (Clients.ContainsKey(guildId))
+                Clients.Remove(guildId);
 
-            Clients.Add(Context.Guild.Id, conn);
+            Clients.Add(guildId, conn);
 
             return conn;
         }
@@ -52,7 +52,7 @@ namespace Kasbot.Services
                 return;
             }
 
-            conn = await CreateConnection(Context);
+            conn = await CreateConnection(Context.Guild.Id, (Context.User as IVoiceState).VoiceChannel);
             await Enqueue(Context.Guild.Id, conn, media);
         }
 
@@ -113,6 +113,14 @@ namespace Kasbot.Services
             {
                 await Stop(guildId);
                 return;
+            }
+
+            // since we can't verify if the bot was disconnected by a websocket error, we do this check
+            if (Clients[guildId].AudioClient.ConnectionState == ConnectionState.Disconnected)
+            {
+                var voiceChannel = Clients[guildId].AudioChannel;
+                Clients.Remove(guildId);
+                await CreateConnection(guildId, voiceChannel);
             }
 
             var mp3Stream = await YoutubeService.DownloadAudioFromYoutube(nextMedia);
@@ -183,7 +191,7 @@ namespace Kasbot.Services
             });
             await stdout.ContinueWith(async ac =>
             {
-                if (ac.Exception!= null)
+                if (ac.Exception != null)
                 {
                     await nextMedia.Channel.SendTemporaryMessageAsync("Error while playing: " + ac.Exception.ToString());
                 }
@@ -271,6 +279,7 @@ namespace Kasbot.Services
     public class Connection
     {
         public IAudioClient AudioClient { get; set; }
+        public IVoiceChannel AudioChannel { get; set; }
         public Stream? CurrentAudioStream { get; set; }
         public Queue<Media> Queue { get; set; } = new Queue<Media>();
     }
