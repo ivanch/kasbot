@@ -155,7 +155,6 @@ namespace Kasbot.Services
                     finally
                     {
                         input.Flush();
-                        input.Dispose();
                     }
                 }
             });
@@ -174,7 +173,6 @@ namespace Kasbot.Services
                     finally
                     {
                         discord.Flush();
-                        output.Close();
                     }
                 }
             });
