@@ -118,6 +118,7 @@ namespace Kasbot.Services
         public VideoId? VideoId { get; set; }
         public RestUserMessage PlayMessage { get; set; }
         public RestUserMessage? QueueMessage { get; set; }
+        public bool Repeat { get; set; }
         
         private SocketUserMessage message;
         public SocketUserMessage Message

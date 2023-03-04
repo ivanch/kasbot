@@ -37,7 +37,7 @@ namespace Kasbot.Services
             return conn;
         }
 
-        public async Task Play(SocketCommandContext Context, string arguments)
+        public async Task Play(ShardedCommandContext Context, string arguments)
         {
             var media = new Media()
             {
@@ -59,6 +59,14 @@ namespace Kasbot.Services
         private async Task Enqueue(ulong guildId, Connection conn, Media media)
         {
             var startPlay = conn.Queue.Count == 0;
+
+            if (media.Search.Contains("-r"))
+            {
+                media.Repeat = true;
+                media.Search.Replace("-r", "");
+            }
+
+            media.Search.Trim();
 
             switch (YoutubeService.GetSearchType(media.Search))
             {
@@ -115,7 +123,7 @@ namespace Kasbot.Services
                 return;
             }
 
-            // since we can't verify if the bot was disconnected by a websocket error, we do this check
+            // since we can't verify if the bot was disconnected by a websocket error, we do this check which should do enough
             if (Clients[guildId].AudioClient.ConnectionState == ConnectionState.Disconnected)
             {
                 var voiceChannel = Clients[guildId].AudioChannel;
@@ -201,7 +209,7 @@ namespace Kasbot.Services
 
             await nextMedia.PlayMessage.TryDeleteAsync();
 
-            if (Clients[guildId].Queue.Count > 0)
+            if (Clients[guildId].Queue.Count > 0 && !Clients[guildId].Queue.First().Repeat)
                 Clients[guildId].Queue.Dequeue();
 
             await PlayNext(guildId);
@@ -229,12 +237,12 @@ namespace Kasbot.Services
         public Task Skip(ulong guildId)
         {
             if (!Clients.ContainsKey(guildId))
-                return Task.CompletedTask;
+                throw new Exception("Bot is not connected!");
 
             var media = Clients[guildId];
 
             if (media.CurrentAudioStream == null)
-                return Task.CompletedTask;
+                throw new Exception("There is no audio playing!");
 
             media.CurrentAudioStream.Close();
 
@@ -244,7 +252,7 @@ namespace Kasbot.Services
         public async Task Stop(ulong guildId)
         {
             if (!Clients.ContainsKey(guildId))
-                return;
+                throw new Exception("Bot is not connected!");
 
             var media = Clients[guildId];
 
@@ -262,7 +270,7 @@ namespace Kasbot.Services
         public async Task Leave(ulong guildId)
         {
             if (!Clients.ContainsKey(guildId))
-                return;
+                throw new Exception("Bot is not connected!");
 
             await Stop(guildId);
             var media = Clients[guildId];
@@ -271,6 +279,28 @@ namespace Kasbot.Services
                 await media.AudioClient.StopAsync();
 
             Clients.Remove(guildId);
+        }
+
+        public async Task Repeat(ulong guildId)
+        {
+            if (!Clients.ContainsKey(guildId))
+                throw new Exception("Bot is not connected!");
+
+            if (Clients[guildId].Queue.Count == 0)
+                throw new Exception("The queue is empty!");
+
+            var media = Clients[guildId].Queue.First();
+            Clients[guildId].Queue.First().Repeat = !media.Repeat;
+            await media.Channel.SendTemporaryMessageAsync(media.Repeat ? "Repeat turned on!" : "Repeat turned off!");
+        }
+
+        public async Task Join(ShardedCommandContext Context)
+        {
+            var guildId = Context.Guild.Id;
+            if (Clients.ContainsKey(guildId))
+                return;
+
+            await CreateConnection(guildId, (Context.User as IVoiceState).VoiceChannel);
         }
     }
 

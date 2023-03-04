@@ -21,47 +21,55 @@ namespace TextCommandFramework.Modules
         [Command("play", RunMode = RunMode.Async)]
         public async Task PlayAsync([Remainder] string text)
         {
-            var user = Context.User;
-            if (user.IsBot) return;
-
             Console.WriteLine("Joining on " + Context.Guild.Name);
 
             string youtubeUrl = text;
             IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
             if (channel is null)
             {
-                await Context.Channel.SendMessageAsync("You need to be in a voice channel to use this command.");
-                return;
+                throw new Exception("You must be connect in a voice channel!");
             }
 
             await PlayerService.Play(Context, text);
         }
 
+        [Command("join", RunMode = RunMode.Async)]
+        public async Task JoinAsync()
+        {
+            Console.WriteLine("Joining on " + Context.Guild.Name);
+
+            IVoiceChannel channel = (Context.User as IVoiceState).VoiceChannel;
+            if (channel is null)
+            {
+                throw new Exception("You must be connect in a voice channel!");
+            }
+
+            await PlayerService.Join(Context);
+        }
+
         [Command("stop", RunMode = RunMode.Async)]
         public async Task StopAsync()
         {
-            var user = Context.User;
-            if (user.IsBot) return;
-
             await PlayerService.Stop(Context.Guild.Id);
         }
 
         [Command("skip", RunMode = RunMode.Async)]
         public async Task SkipAsync()
         {
-            var user = Context.User;
-            if (user.IsBot) return;
-
             await PlayerService.Skip(Context.Guild.Id);
         }
 
         [Command("leave", RunMode = RunMode.Async)]
         public async Task LeaveAsync()
         {
-            var user = Context.User;
-            if (user.IsBot) return;
-
             await PlayerService.Leave(Context.Guild.Id);
+        }
+
+        [Alias("r")]
+        [Command("repeat", RunMode = RunMode.Async)]
+        public async Task RepeatAsync()
+        {
+            await PlayerService.Repeat(Context.Guild.Id);
         }
     }
 }
