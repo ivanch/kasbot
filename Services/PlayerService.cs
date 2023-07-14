@@ -23,7 +23,7 @@ namespace Kasbot.Services
             var conn = new Connection();
             IAudioClient audioClient = await voiceChannel.ConnectAsync(selfDeaf: true);
 
-            audioClient.Disconnected += (ex) => Stop(guildId);
+            // audioClient.Disconnected += (ex) => Stop(guildId);
             audioClient.StreamDestroyed += (ex) => Stop(guildId);
 
             conn.AudioClient = audioClient;
