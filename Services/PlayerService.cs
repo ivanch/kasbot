@@ -3,6 +3,7 @@ using Discord.Audio;
 using Discord.Commands;
 using Kasbot.Extensions;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Kasbot.Services
 {
@@ -23,9 +24,6 @@ namespace Kasbot.Services
             var conn = new Connection();
             IAudioClient audioClient = await voiceChannel.ConnectAsync(selfDeaf: true);
 
-            // audioClient.Disconnected += (ex) => Stop(guildId);
-            audioClient.StreamDestroyed += (ex) => Stop(guildId);
-
             conn.AudioClient = audioClient;
             conn.AudioChannel = voiceChannel;
 
@@ -45,15 +43,23 @@ namespace Kasbot.Services
                 Search = arguments,
                 Name = ""
             };
+            var guildId = Context.Guild.Id;
+            var userVoiceChannel = (Context.User as IVoiceState).VoiceChannel;
 
-            if (Clients.TryGetValue(Context.Guild.Id, out var conn))
+            if (Clients.TryGetValue(guildId, out var conn))
             {
-                await Enqueue(Context.Guild.Id, conn, media);
-                return;
+                if (conn.AudioChannel.Id != userVoiceChannel.Id)
+                {
+                    await Stop(guildId);
+                    conn = await CreateConnection(guildId, userVoiceChannel);
+                }
+            }
+            else
+            {
+                conn = await CreateConnection(guildId, userVoiceChannel);
             }
 
-            conn = await CreateConnection(Context.Guild.Id, (Context.User as IVoiceState).VoiceChannel);
-            await Enqueue(Context.Guild.Id, conn, media);
+            await Enqueue(guildId, conn, media);
         }
 
         private async Task Enqueue(ulong guildId, Connection conn, Media media)
@@ -256,7 +262,7 @@ namespace Kasbot.Services
 
             var media = Clients[guildId];
 
-            foreach (var v in media.Queue.Skip(1))
+            foreach (var v in media.Queue.Skip(0))
             {
                 await v.PlayMessage.TryDeleteAsync();
             }
