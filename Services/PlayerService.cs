@@ -2,8 +2,8 @@
 using Discord.Audio;
 using Discord.Commands;
 using Kasbot.Extensions;
+using Kasbot.Models;
 using System.Diagnostics;
-using System.Linq;
 
 namespace Kasbot.Services
 {
@@ -35,13 +35,14 @@ namespace Kasbot.Services
             return conn;
         }
 
-        public async Task Play(ShardedCommandContext Context, string arguments)
+        public async Task Play(ShardedCommandContext Context, string arguments, Flags flags)
         {
             var media = new Media()
             {
                 Message = Context.Message,
                 Search = arguments,
-                Name = ""
+                Flags = flags,
+                Name = "",
             };
             var guildId = Context.Guild.Id;
             var userVoiceChannel = (Context.User as IVoiceState).VoiceChannel;
@@ -65,12 +66,6 @@ namespace Kasbot.Services
         private async Task Enqueue(ulong guildId, Connection conn, Media media)
         {
             var startPlay = conn.Queue.Count == 0;
-
-            if (media.Search.Contains("-r"))
-            {
-                media.Repeat = true;
-                media.Search.Replace("-r", "");
-            }
 
             media.Search.Trim();
 
@@ -148,8 +143,11 @@ namespace Kasbot.Services
             var audioClient = Clients[guildId].AudioClient;
             var ffmpeg = CreateStream();
 
-            var message = $"⏯ Playing: **{nextMedia.Name}** *({nextMedia.Length.TotalMinutes:00}:{nextMedia.Length.Seconds:00})*";
-            nextMedia.PlayMessage = await nextMedia.Channel.SendMessageAsync(message);
+            if (!nextMedia.Flags.Silent)
+            {
+                var message = $"⏯ Playing: **{nextMedia.Name}** *({nextMedia.Length.TotalMinutes:00}:{nextMedia.Length.Seconds:00})*";
+                nextMedia.PlayMessage = await nextMedia.Channel.SendMessageAsync(message);
+            }
 
             if (nextMedia.QueueMessage != null)
             {
@@ -215,7 +213,8 @@ namespace Kasbot.Services
 
             await nextMedia.PlayMessage.TryDeleteAsync();
 
-            if (Clients[guildId].Queue.Count > 0 && !Clients[guildId].Queue.First().Repeat)
+            if (Clients[guildId].Queue.Count > 0 &&
+                !Clients[guildId].Queue.First().Flags.Repeat)
                 Clients[guildId].Queue.Dequeue();
 
             await PlayNext(guildId);
@@ -296,8 +295,8 @@ namespace Kasbot.Services
                 throw new Exception("The queue is empty!");
 
             var media = Clients[guildId].Queue.First();
-            Clients[guildId].Queue.First().Repeat = !media.Repeat;
-            await media.Channel.SendTemporaryMessageAsync(media.Repeat ? "Repeat turned on!" : "Repeat turned off!");
+            media.Flags.Repeat = !media.Flags.Repeat;
+            await media.Channel.SendTemporaryMessageAsync(media.Flags.Repeat ? "Repeat turned on!" : "Repeat turned off!");
         }
 
         public async Task Join(ShardedCommandContext Context)
@@ -308,13 +307,5 @@ namespace Kasbot.Services
 
             await CreateConnection(guildId, (Context.User as IVoiceState).VoiceChannel);
         }
-    }
-
-    public class Connection
-    {
-        public IAudioClient AudioClient { get; set; }
-        public IVoiceChannel AudioChannel { get; set; }
-        public Stream? CurrentAudioStream { get; set; }
-        public Queue<Media> Queue { get; set; } = new Queue<Media>();
     }
 }

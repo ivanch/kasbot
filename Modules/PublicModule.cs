@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Commands;
+using Kasbot.Models;
 using Kasbot.Services;
 using TextCommandFramework.Services;
 
@@ -30,7 +31,7 @@ namespace TextCommandFramework.Modules
                 throw new Exception("You must be connect in a voice channel!");
             }
 
-            await PlayerService.Play(Context, text);
+            await PlayerService.Play(Context, text, new Flags(text));
         }
 
         [Command("join", RunMode = RunMode.Async)]

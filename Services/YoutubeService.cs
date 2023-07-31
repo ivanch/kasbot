@@ -3,6 +3,7 @@ using YoutubeExplode.Videos;
 using YoutubeExplode;
 using Discord.Rest;
 using YoutubeExplode.Videos.Streams;
+using Kasbot.Models;
 
 namespace Kasbot.Services
 {
@@ -114,11 +115,11 @@ namespace Kasbot.Services
 
         public string Name { get; set; }
         public TimeSpan Length { get; set; }
+        public Flags Flags { get; set; }
 
         public VideoId? VideoId { get; set; }
         public RestUserMessage PlayMessage { get; set; }
         public RestUserMessage? QueueMessage { get; set; }
-        public bool Repeat { get; set; }
         
         private SocketUserMessage message;
         public SocketUserMessage Message

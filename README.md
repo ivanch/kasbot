@@ -19,4 +19,10 @@ dotnet bin/Kasbot.dll
 | `!leave` | Leaves the current voice channel and clears the queue |
 | `!cat` | Sends a random cat pic into the channel :3 |
 
+## Play flags
+| Flag | Description
+| -- | -- |
+| `-s`, `-silent` | Don't send play message into channel |
+| `-r`, `-repeat` | Repeat music |
+
 You can change the command prefix by putting another symbol in `COMMAND_PREFIX` environment variable.
