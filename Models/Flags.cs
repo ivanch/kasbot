@@ -1,8 +1,13 @@
-﻿namespace Kasbot.Models
+﻿using Kasbot.Annotations;
+
+namespace Kasbot.Models
 {
     public class Flags
     {
+        [Flag("-s", "-silent")]
         public bool Silent { get; set; }
+
+        [Flag("-r", "-repeat")]
         public bool Repeat { get; set; }
 
         public Flags() { }
@@ -12,19 +17,29 @@
             this.Parse(command);
         }
 
-        public void Parse(string command)
+        public string Parse(string command)
         {
-            if (command.Contains("-s") ||
-                command.Contains("-silent"))
-            {
-                Silent = true;
-            }
+            string result = command;
 
-            if (command.Contains("-r") ||
-                command.Contains("-repeat"))
+            this.GetType().GetProperties().ToList().ForEach(prop =>
             {
-                Repeat = true;
-            }
+                Attribute.GetCustomAttributes(prop).ToList().ForEach(attr =>
+                {
+                    if (attr is FlagAttribute flag)
+                    {
+                        flag.Names.ForEach(name =>
+                        {
+                            if (command.Contains(name))
+                            {
+                                prop.SetValue(this, true);
+                                result.Replace(name, string.Empty);
+                            }
+                        });
+                    }
+                });
+            });
+
+            return result;
         }
     }
 }

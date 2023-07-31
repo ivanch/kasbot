@@ -3,7 +3,7 @@ using Discord.Audio;
 using Discord.Commands;
 using Kasbot.Extensions;
 using Kasbot.Models;
-using System.Diagnostics;
+using Kasbot.Services.Internal;
 
 namespace Kasbot.Services
 {
@@ -11,10 +11,12 @@ namespace Kasbot.Services
     {
         public Dictionary<ulong, Connection> Clients { get; set; }
         public YoutubeService YoutubeService { get; set; }
+        public AudioService AudioService { get; set; }
 
-        public PlayerService(YoutubeService youtubeService)
+        public PlayerService(YoutubeService youtubeService, AudioService audioService)
         {
-            this.YoutubeService = youtubeService;
+            YoutubeService = youtubeService;
+            AudioService = audioService;
 
             Clients = new Dictionary<ulong, Connection>();
         }
@@ -141,7 +143,7 @@ namespace Kasbot.Services
             }
 
             var audioClient = Clients[guildId].AudioClient;
-            var ffmpeg = CreateStream();
+            var ffmpeg = AudioService.CreateStream();
 
             if (!nextMedia.Flags.Silent)
             {
@@ -218,25 +220,6 @@ namespace Kasbot.Services
                 Clients[guildId].Queue.Dequeue();
 
             await PlayNext(guildId);
-        }
-
-        private Process CreateStream()
-        {
-            var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = "ffmpeg",
-                Arguments = $"-hide_banner -loglevel panic -i pipe:0 -ac 2 -f s16le -ar 48000 pipe:1",
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true
-            });
-
-            if (process == null || process.HasExited)
-            {
-                throw new Exception("Sorry, ffmpeg killed itself in a tragic accident!");
-            }
-
-            return process;
         }
 
         public Task Skip(ulong guildId)

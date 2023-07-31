@@ -6,7 +6,7 @@ using TextCommandFramework.Services;
 
 namespace TextCommandFramework.Modules
 {
-    public class PublicModule : ModuleBase<ShardedCommandContext>
+    public class CommandModule : ModuleBase<ShardedCommandContext>
     {
         public PictureService PictureService { get; set; }
         public PlayerService PlayerService { get; set; }
@@ -31,7 +31,9 @@ namespace TextCommandFramework.Modules
                 throw new Exception("You must be connect in a voice channel!");
             }
 
-            await PlayerService.Play(Context, text, new Flags(text));
+            var flags = new Flags();
+            var withoutFlags = flags.Parse(text);
+            await PlayerService.Play(Context, withoutFlags, flags);
         }
 
         [Command("join", RunMode = RunMode.Async)]

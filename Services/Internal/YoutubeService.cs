@@ -5,7 +5,7 @@ using Discord.Rest;
 using YoutubeExplode.Videos.Streams;
 using Kasbot.Models;
 
-namespace Kasbot.Services
+namespace Kasbot.Services.Internal
 {
     public class YoutubeService
     {
@@ -120,7 +120,7 @@ namespace Kasbot.Services
         public VideoId? VideoId { get; set; }
         public RestUserMessage PlayMessage { get; set; }
         public RestUserMessage? QueueMessage { get; set; }
-        
+
         private SocketUserMessage message;
         public SocketUserMessage Message
         {
@@ -128,7 +128,7 @@ namespace Kasbot.Services
             set
             {
                 message = value;
-                this.Channel = value.Channel;
+                Channel = value.Channel;
             }
         }
         public ISocketMessageChannel Channel { get; private set; }

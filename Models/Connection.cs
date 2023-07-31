@@ -1,6 +1,6 @@
 ﻿using Discord;
 using Discord.Audio;
-using Kasbot.Services;
+using Kasbot.Services.Internal;
 
 namespace Kasbot.Models
 {

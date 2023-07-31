@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Kasbot.Services;
+using Kasbot.Services.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using TextCommandFramework.Services;
 
@@ -88,6 +89,7 @@ namespace TextCommandFramework
                 .AddSingleton<DiscordShardedClient>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<YoutubeService>()
+                .AddSingleton<AudioService>()
                 .AddSingleton<PlayerService>()
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<HttpClient>()
