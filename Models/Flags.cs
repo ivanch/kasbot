@@ -32,7 +32,7 @@ namespace Kasbot.Models
                             if (command.Contains(name))
                             {
                                 prop.SetValue(this, true);
-                                result.Replace(name, string.Empty);
+                                result = result.Replace(name, string.Empty);
                             }
                         });
                     }
