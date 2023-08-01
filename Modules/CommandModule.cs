@@ -33,7 +33,7 @@ namespace TextCommandFramework.Modules
 
             var flags = new Flags();
             var withoutFlags = flags.Parse(text);
-            await PlayerService.Play(Context, withoutFlags, flags);
+            await PlayerService.Play(Context, withoutFlags.Trim(), flags);
         }
 
         [Command("join", RunMode = RunMode.Async)]
