@@ -11,6 +11,7 @@ namespace TextCommandFramework
     class Program
     {
         private static string TOKEN = Environment.GetEnvironmentVariable("TOKEN");
+        private static int SHARDS = int.Parse(Environment.GetEnvironmentVariable("SHARDS"));
 
         static void Main(string[] args)
         {
@@ -18,8 +19,16 @@ namespace TextCommandFramework
             {
                 throw new Exception("Discord Bot Token was not found.");
             }
+            if (SHARDS == 0)
+            {
+                Console.WriteLine("Shards amount not found, defaulting to 1.");
+                SHARDS = 1;
+            }
 
-            new Program().MainAsync().GetAwaiter().GetResult();
+            new Program()
+                .MainAsync()
+                .GetAwaiter()
+                .GetResult();
         }
 
         public async Task MainAsync()
@@ -84,7 +93,7 @@ namespace TextCommandFramework
                 .AddSingleton(new DiscordSocketConfig
                 {
                     GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
-                    TotalShards = 3
+                    TotalShards = SHARDS
                 })
                 .AddSingleton<DiscordShardedClient>()
                 .AddSingleton<CommandService>()

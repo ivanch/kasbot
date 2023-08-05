@@ -6,4 +6,5 @@ services:
     environment:
       - TOKEN=<Your bot token here>
       - COMMAND_PREFIX=!
+      - SHARDS=3
     restart: unless-stopped

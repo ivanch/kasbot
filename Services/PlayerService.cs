@@ -143,7 +143,6 @@ namespace Kasbot.Services
             }
 
             var audioClient = Clients[guildId].AudioClient;
-            var ffmpeg = AudioService.CreateStream();
 
             if (!nextMedia.Flags.Silent)
             {
@@ -156,62 +155,17 @@ namespace Kasbot.Services
                 await nextMedia.QueueMessage.TryDeleteAsync();
             }
 
-            Task stdin = new Task(() =>
-            {
-                using (var input = mp3Stream)
+            AudioService.StartAudioTask(mp3Stream, audioClient,
+                (outAudioStream) =>
                 {
-                    try
-                    {
-                        input.CopyTo(ffmpeg.StandardInput.BaseStream);
-                        ffmpeg.StandardInput.Close();
-                    }
-                    catch { }
-                    finally
-                    {
-                        input.Flush();
-                    }
-                }
-            });
-
-            Task stdout = new Task(() =>
-            {
-                using (var output = ffmpeg.StandardOutput.BaseStream)
-                using (var discord = audioClient.CreatePCMStream(AudioApplication.Music))
+                    Clients[guildId].CurrentAudioStream = outAudioStream;
+                }, async (ac) =>
                 {
-                    try
+                    if (ac.Exception != null)
                     {
-                        Clients[guildId].CurrentAudioStream = output;
-                        output.CopyTo(discord);
+                        await nextMedia.Channel.SendTemporaryMessageAsync("Error in stream: " + ac.Exception.ToString());
                     }
-                    catch { }
-                    finally
-                    {
-                        discord.Flush();
-                    }
-                }
-            });
-
-            stdin.Start();
-            stdout.Start();
-
-            await stdin.ContinueWith(async ac =>
-            {
-                if (ac.Exception != null)
-                {
-                    await nextMedia.Channel.SendTemporaryMessageAsync("Error in input stream: " + ac.Exception.ToString());
-                }
-            });
-            await stdout.ContinueWith(async ac =>
-            {
-                if (ac.Exception != null)
-                {
-                    await nextMedia.Channel.SendTemporaryMessageAsync("Error while playing: " + ac.Exception.ToString());
-                }
-            });
-
-            Task.WaitAll(stdin, stdout);
-
-            ffmpeg.Close();
+                });
 
             await nextMedia.PlayMessage.TryDeleteAsync();
 

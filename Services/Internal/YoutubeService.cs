@@ -22,12 +22,14 @@ namespace Kasbot.Services.Internal
             var playlistInfo = await youtube.Playlists.GetAsync(search);
             await youtube.Playlists.GetVideosAsync(search).ForEachAsync(videoId =>
             {
-                var media = new Media();
-
-                media.Name = videoId.Title;
-                media.Length = videoId.Duration ?? new TimeSpan(0);
-                media.VideoId = videoId.Id;
-                media.Message = message;
+                var media = new Media
+                {
+                    Name = videoId.Title,
+                    Length = videoId.Duration ?? new TimeSpan(0),
+                    VideoId = videoId.Id,
+                    Message = message,
+                    Flags = new Flags()
+                };
 
                 collection.Medias.Add(media);
             });
