@@ -7,7 +7,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace TextCommandFramework.Services
+namespace Kasbot.Services
 {
     public class CommandHandlingService
     {

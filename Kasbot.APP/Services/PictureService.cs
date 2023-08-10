@@ -2,7 +2,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace TextCommandFramework.Services
+namespace Kasbot.Services
 {
     public class PictureService
     {

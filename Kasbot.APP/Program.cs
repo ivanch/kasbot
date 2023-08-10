@@ -4,14 +4,13 @@ using Discord.WebSocket;
 using Kasbot.Services;
 using Kasbot.Services.Internal;
 using Microsoft.Extensions.DependencyInjection;
-using TextCommandFramework.Services;
 
-namespace TextCommandFramework
+namespace Kasbot
 {
     class Program
     {
         private static string TOKEN = Environment.GetEnvironmentVariable("TOKEN");
-        private static int SHARDS = int.Parse(Environment.GetEnvironmentVariable("SHARDS"));
+        private static int SHARDS = int.Parse(Environment.GetEnvironmentVariable("SHARDS") ?? "0");
 
         static void Main(string[] args)
         {

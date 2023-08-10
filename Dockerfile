@@ -2,9 +2,12 @@ FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /App
 
 # Copy everything
-COPY . ./
+COPY ./Kasbot.APP ./Kasbot.APP
+COPY ./Kasbot.sln ./Kasbot.sln
+
 # Restore as distinct layers
 RUN dotnet restore
+
 # Build a release
 RUN dotnet build -c Release -o out
 

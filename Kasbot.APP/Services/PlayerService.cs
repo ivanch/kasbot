@@ -159,7 +159,8 @@ namespace Kasbot.Services
                 (outAudioStream) =>
                 {
                     Clients[guildId].CurrentAudioStream = outAudioStream;
-                }, async (ac) =>
+                },
+                async (ac) =>
                 {
                     if (ac.Exception != null)
                     {

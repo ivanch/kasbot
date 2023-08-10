@@ -1,7 +1,7 @@
 appsettings.*.json
 .env*
 
-Properties/launchSettings.json
+Kasbot.APP/*/launchSettings.json
 
 .vs
 .vscode

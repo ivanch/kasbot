@@ -2,9 +2,9 @@ using Discord;
 using Discord.Commands;
 using Kasbot.Models;
 using Kasbot.Services;
-using TextCommandFramework.Services;
+using Kasbot.Services;
 
-namespace TextCommandFramework.Modules
+namespace Kasbot.Modules
 {
     public class CommandModule : ModuleBase<ShardedCommandContext>
     {
