@@ -1,13 +1,16 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Google.Protobuf.WellKnownTypes;
+using Kasbot.App.Internal.Services;
 using Kasbot.Services;
 using Kasbot.Services.Internal;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kasbot
 {
-    class Program
+    public class Program
     {
         private static string TOKEN = Environment.GetEnvironmentVariable("TOKEN");
         private static int SHARDS = int.Parse(Environment.GetEnvironmentVariable("SHARDS") ?? "0");
@@ -24,17 +27,28 @@ namespace Kasbot
                 SHARDS = 1;
             }
 
+            Task.Factory.StartNew(() => new Program().RunGrpc(args));
+
             new Program()
                 .MainAsync()
                 .GetAwaiter()
                 .GetResult();
         }
 
+        private void RunGrpc(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddGrpc();
+
+            var app = builder.Build();
+            app.MapGrpcService<StatusService>();
+            app.Run(url: "https://localhost:7042");
+        }
+
         public async Task MainAsync()
         {
             using (var services = ConfigureServices())
             {
-
                 var client = services.GetRequiredService<DiscordShardedClient>();
 
                 client.Log += LogAsync;
