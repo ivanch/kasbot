@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /App
 
 # Copy everything
+COPY ./Proto ./Proto
 COPY ./Kasbot.APP ./Kasbot.APP
 COPY ./Kasbot.API ./Kasbot.API
 COPY ./Kasbot.sln ./Kasbot.sln
@@ -23,4 +24,4 @@ RUN chmod +x start.sh
 
 COPY --from=build-env /App/out .
 
-ENTRYPOINT ["./start.sh" ]
+ENTRYPOINT ["sh", "./start.sh" ]
