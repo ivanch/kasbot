@@ -1,34 +1,37 @@
-﻿using Discord.WebSocket;
-using YoutubeExplode.Videos;
+﻿using Kasbot.App.Services.Internal;
+using Serilog;
 using YoutubeExplode;
-using Discord.Rest;
+using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
-using Kasbot.Models;
 
 namespace Kasbot.Services.Internal
 {
     public class YoutubeService
     {
-        public YoutubeService()
-        {
+        private ILogger Logger { get; set; }
 
+        public YoutubeService(ILogger logger)
+        {
+            this.Logger = logger;
         }
 
-        public async Task<MediaCollection> DownloadPlaylistMetadataFromYoutube(SocketUserMessage message, string search)
+        public async Task<MediaCollection> FetchPlaylist(Media rawMedia)
         {
             var collection = new MediaCollection();
             var youtube = new YoutubeClient();
 
-            var playlistInfo = await youtube.Playlists.GetAsync(search);
-            await youtube.Playlists.GetVideosAsync(search).ForEachAsync(videoId =>
+            Logger.Debug($"Fetching playlist from YouTube: {rawMedia.Search}");
+
+            var playlistInfo = await youtube.Playlists.GetAsync(rawMedia.Search);
+            await youtube.Playlists.GetVideosAsync(rawMedia.Search).ForEachAsync(videoId =>
             {
                 var media = new Media
                 {
                     Name = videoId.Title,
                     Length = videoId.Duration ?? new TimeSpan(0),
                     VideoId = videoId.Id,
-                    Message = message,
-                    Flags = new Flags()
+                    Message = rawMedia.Message,
+                    Flags = rawMedia.Flags
                 };
 
                 collection.Medias.Add(media);
@@ -36,11 +39,15 @@ namespace Kasbot.Services.Internal
 
             collection.CollectionName = playlistInfo.Title;
 
+            Logger.Debug($"Fetched playlist from YouTube: {rawMedia.Search}");
+
             return collection;
         }
 
-        public async Task<Media> DownloadMetadataFromYoutube(Media media)
+        public async Task<Media> FetchSingleMedia(Media media)
         {
+            Logger.Debug($"Fetching single media: {media.Search}");
+
             var youtube = new YoutubeClient();
 
             IVideo? videoId;
@@ -52,8 +59,11 @@ namespace Kasbot.Services.Internal
 
             if (videoId == null)
             {
+                Logger.Error($"No video found for \"{media.Search}\".");
                 return media;
             }
+
+            Logger.Debug($"Found video: {videoId.Title}");
 
             media.Name = videoId.Title;
             media.Length = videoId.Duration ?? new TimeSpan(0);
@@ -82,63 +92,5 @@ namespace Kasbot.Services.Internal
 
             return memoryStream;
         }
-
-        public SearchType GetSearchType(string query)
-        {
-            if (string.IsNullOrEmpty(query))
-                return SearchType.None;
-
-            if (query.StartsWith("http://") || query.StartsWith("https://"))
-            {
-                if (query.Contains("playlist?list="))
-                    return SearchType.PlaylistURL;
-
-                // need to add 'else if' for ChannelURL
-
-                return SearchType.VideoURL;
-            }
-
-            return SearchType.StringSearch;
-        }
-    }
-
-    public enum SearchType
-    {
-        None,
-        StringSearch,
-        VideoURL,
-        PlaylistURL,
-        ChannelURL
-    }
-
-    public class Media
-    {
-        public string Search { get; set; }
-
-        public string Name { get; set; }
-        public TimeSpan Length { get; set; }
-        public Flags Flags { get; set; }
-
-        public VideoId? VideoId { get; set; }
-        public RestUserMessage PlayMessage { get; set; }
-        public RestUserMessage? QueueMessage { get; set; }
-
-        private SocketUserMessage message;
-        public SocketUserMessage Message
-        {
-            get => message;
-            set
-            {
-                message = value;
-                Channel = value.Channel;
-            }
-        }
-        public ISocketMessageChannel Channel { get; private set; }
-    }
-
-    public class MediaCollection
-    {
-        public string CollectionName { get; set; }
-        public List<Media> Medias { get; set; } = new List<Media>();
     }
 }

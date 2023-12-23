@@ -1,24 +1,28 @@
 ﻿using Discord;
 using Discord.Audio;
 using Discord.Commands;
+using Kasbot.App.Services.Internal;
 using Kasbot.Extensions;
 using Kasbot.Models;
 using Kasbot.Services.Internal;
+using Serilog;
 
 namespace Kasbot.Services
 {
     public class PlayerService
     {
-        public Dictionary<ulong, Connection> Clients { get; set; }
-        public YoutubeService YoutubeService { get; set; }
-        public AudioService AudioService { get; set; }
+        private Dictionary<ulong, Connection> Clients { get; set; }
+        private AudioService AudioService { get; set; }
+        private MediaService MediaService { get; set; }
+        private ILogger Logger { get; set; }
 
-        public PlayerService(YoutubeService youtubeService, AudioService audioService)
+        public PlayerService(AudioService audioService, MediaService mediaService, ILogger logger)
         {
-            YoutubeService = youtubeService;
-            AudioService = audioService;
-
             Clients = new Dictionary<ulong, Connection>();
+
+            AudioService = audioService;
+            MediaService = mediaService;
+            this.Logger = logger;
         }
 
         private async Task<Connection> CreateConnection(ulong guildId, IVoiceChannel voiceChannel)
@@ -42,9 +46,9 @@ namespace Kasbot.Services
             var media = new Media()
             {
                 Message = Context.Message,
-                Search = arguments,
+                Search = arguments.Trim(),
                 Flags = flags,
-                Name = "",
+                Name = string.Empty,
             };
             var guildId = Context.Guild.Id;
             var userVoiceChannel = (Context.User as IVoiceState).VoiceChannel;
@@ -69,46 +73,49 @@ namespace Kasbot.Services
         {
             var startPlay = conn.Queue.Count == 0;
 
-            media.Search.Trim();
+            var mediaType = UrlResolver.GetSearchType(media.Search);
 
-            switch (YoutubeService.GetSearchType(media.Search))
+            Logger.Debug($"Enqueueing {media.Search} as {mediaType}");
+
+            switch (mediaType)
             {
                 case SearchType.StringSearch:
                 case SearchType.VideoURL:
-                    media = await YoutubeService.DownloadMetadataFromYoutube(media);
+                case SearchType.SpotifyTrack:
+                    Logger.Debug($"Fetching {media.Search} as {mediaType}");
 
-                    if (media.VideoId == null)
-                    {
-                        await media.Channel.SendTemporaryMessageAsync($"No video found for \"{media.Search}\".");
-                        return;
-                    }
+                    media = await MediaService.FetchSingleMedia(media, mediaType);
 
-                    conn.Queue.Enqueue(media);
-                    if (startPlay)
-                        await PlayNext(guildId);
-                    else
+                    if (!startPlay && !media.Flags.Silent)
                     {
                         var message = $"Queued **{media.Name}** *({media.Length.TotalMinutes:00}:{media.Length.Seconds:00})*";
                         media.QueueMessage = await media.Channel.SendMessageAsync(message);
                     }
 
-                    break;
-                case SearchType.ChannelURL:
-                case SearchType.PlaylistURL:
-                    var collection = await YoutubeService.DownloadPlaylistMetadataFromYoutube(media.Message, media.Search);
+                    Logger.Debug($"Enqueueing {media.Search} as {mediaType}");
 
-                    collection.Medias.ForEach(m => conn.Queue.Enqueue(m));
-                    
-                    await media.Channel.SendMessageAsync($"Queued **{collection.Medias.Count}** items from *{collection.CollectionName}* playlist.");
-
-                    if (startPlay)
-                        await PlayNext(guildId);
+                    conn.Queue.Enqueue(media);
 
                     break;
-                case SearchType.None:
-                default:
+                case SearchType.VideoPlaylistURL:
+                case SearchType.YoutubePlaylist:
+                case SearchType.SpotifyPlaylist:
+                case SearchType.SpotifyAlbum:
+                    Logger.Debug($"Fetching {media.Search} as {mediaType}");
+
+                    var mediaCollection = await MediaService.FetchMediaCollection(media, mediaType);
+
+                    mediaCollection.Medias.ForEach(m => conn.Queue.Enqueue(m));
+
+                    Logger.Debug($"Enqueueing {media.Search} as {mediaType}");
+
+                    await media.Channel.SendMessageAsync($"Queued **{mediaCollection.Medias.Count}** items from *{mediaCollection.CollectionName}* playlist.");
+
                     break;
             }
+
+            if (startPlay)
+                await PlayNext(guildId);
         }
 
         private async Task PlayNext(ulong guildId)
@@ -134,15 +141,22 @@ namespace Kasbot.Services
                 await CreateConnection(guildId, voiceChannel);
             }
 
-            var mp3Stream = await YoutubeService.DownloadAudioFromYoutube(nextMedia);
+            Logger.Debug($"Downloading {nextMedia.Name}");
+
+            var mp3Stream = await MediaService.DownloadAudioFromYoutube(nextMedia);
+
+            Logger.Debug($"Playing {nextMedia.Name}");
 
             if (mp3Stream == null)
             {
+                Logger.Error($"Failed to download {nextMedia.Name}");
                 await Stop(guildId);
                 return;
             }
 
             var audioClient = Clients[guildId].AudioClient;
+
+            Logger.Information($"Playing {nextMedia.Name}");
 
             if (!nextMedia.Flags.Silent)
             {
@@ -164,6 +178,7 @@ namespace Kasbot.Services
                 {
                     if (ac.Exception != null)
                     {
+                        Logger.Error(ac.Exception, $"Error in stream: {ac.Exception.Message}");
                         await nextMedia.Channel.SendTemporaryMessageAsync("Error in stream: " + ac.Exception.ToString());
                     }
                 });

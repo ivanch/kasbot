@@ -1,12 +1,14 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using Google.Protobuf.WellKnownTypes;
 using Kasbot.App.Internal.Services;
+using Kasbot.App.Services.Internal;
 using Kasbot.Services;
 using Kasbot.Services.Internal;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 
 namespace Kasbot
 {
@@ -102,15 +104,23 @@ namespace Kasbot
 
         private ServiceProvider ConfigureServices()
         {
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message}{NewLine}{Exception}")
+                .CreateBootstrapLogger();
+
             return new ServiceCollection()
                 .AddSingleton(new DiscordSocketConfig
                 {
                     GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
                     TotalShards = SHARDS
                 })
+                .AddSerilog(logger)
                 .AddSingleton<DiscordShardedClient>()
                 .AddSingleton<CommandService>()
+                .AddSingleton<SpotifyService>()
                 .AddSingleton<YoutubeService>()
+                .AddSingleton<MediaService>()
                 .AddSingleton<AudioService>()
                 .AddSingleton<PlayerService>()
                 .AddSingleton<CommandHandlingService>()
