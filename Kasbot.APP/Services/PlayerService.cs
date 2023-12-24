@@ -81,6 +81,7 @@ namespace Kasbot.Services
             {
                 case SearchType.StringSearch:
                 case SearchType.VideoURL:
+                case SearchType.VideoPlaylistURL:
                 case SearchType.SpotifyTrack:
                     Logger.Debug($"Fetching {media.Search} as {mediaType}");
 
@@ -97,7 +98,6 @@ namespace Kasbot.Services
                     conn.Queue.Enqueue(media);
 
                     break;
-                case SearchType.VideoPlaylistURL:
                 case SearchType.YoutubePlaylist:
                 case SearchType.SpotifyPlaylist:
                 case SearchType.SpotifyAlbum:

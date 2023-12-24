@@ -5,42 +5,70 @@ namespace Kasbot.App.Services.Internal
 {
     public class SpotifyService
     {
-        private readonly SpotifyClient? spotifyClient = null;
+        private readonly string spotifyClientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID") ?? string.Empty;
+        private readonly string spotifyClientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET") ?? string.Empty;
+
+        private SpotifyClient? spotifyClient = null;
         private ILogger Logger { get; set; }
 
         public SpotifyService(ILogger logger)
         {
             this.Logger = logger;
 
-            this.spotifyClient = SetupSpotifyClient();
+            SetupSpotifyClient();
         }
 
-        private SpotifyClient SetupSpotifyClient()
+        private void SetupSpotifyClient()
         {
-            var spotifyClientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
-            var spotifyClientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
-
-            if (spotifyClientId == null || spotifyClientSecret == null)
+            if (string.IsNullOrWhiteSpace(spotifyClientId) ||
+                string.IsNullOrWhiteSpace(spotifyClientSecret))
             {
                 Logger.Warning("Spotify Token was not found. Will disable Spotify integration.");
-                return null;
+                return;
             }
 
-            var config = SpotifyClientConfig.CreateDefault();
-
-            var request = new ClientCredentialsRequest(spotifyClientId, spotifyClientSecret);
-            var response = new OAuthClient(config).RequestToken(request).Result;
-
-            return new SpotifyClient(config.WithToken(response.AccessToken));
+            if (RefreshToken().IsFaulted)
+            {
+                throw new Exception("Failed to create Spotify client.");
+            }
         }
 
-        public async Task<Media> FetchSingleMedia(Media media)
+        private async Task CheckTokenValid()
         {
             if (spotifyClient == null)
             {
                 Logger.Warning("Spotify integration is disabled.");
                 throw new Exception("Spotify integration is disabled.");
             }
+
+            try
+            {
+                await spotifyClient.Browse.GetCategories();
+            }
+            catch (Exception)
+            {
+                await RefreshToken();
+            }
+        }
+
+        private async Task RefreshToken()
+        {
+            if (spotifyClient == null)
+            {
+                spotifyClient = null;
+            }
+
+            var config = SpotifyClientConfig.CreateDefault();
+
+            var request = new ClientCredentialsRequest(spotifyClientId, spotifyClientSecret);
+            var response = await (new OAuthClient(config)).RequestToken(request);
+
+            spotifyClient = new SpotifyClient(config.WithToken(response.AccessToken));
+        }
+
+        public async Task<Media> FetchSingleMedia(Media media)
+        {
+            await CheckTokenValid();
 
             var trackId = UrlResolver.GetSpotifyResourceId(media.Search);
             var spotifyTrack = await spotifyClient.Tracks.Get(trackId);
@@ -58,11 +86,7 @@ namespace Kasbot.App.Services.Internal
 
         public async Task<MediaCollection> FetchPlaylist(Media rawMedia)
         {
-            if (spotifyClient == null)
-            {
-                Logger.Warning("Spotify integration is disabled.");
-                throw new Exception("Spotify integration is disabled.");
-            }
+            await CheckTokenValid();
 
             var playlistId = UrlResolver.GetSpotifyResourceId(rawMedia.Search);
             var spotifyPlaylist = await spotifyClient.Playlists.Get(playlistId);
@@ -104,11 +128,7 @@ namespace Kasbot.App.Services.Internal
 
         public async Task<MediaCollection> FetchAlbum(Media rawMedia)
         {
-            if (spotifyClient == null)
-            {
-                Logger.Warning("Spotify integration is disabled.");
-                throw new Exception("Spotify integration is disabled.");
-            }
+            await CheckTokenValid();
 
             var albumId = UrlResolver.GetSpotifyResourceId(rawMedia.Search);
             var spotifyAlbum = await spotifyClient.Albums.Get(albumId);
