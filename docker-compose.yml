@@ -4,7 +4,9 @@ services:
     image: ivanch/kasbot:latest
     container_name: kasbot
     environment:
-      - TOKEN=<Your bot token here>
+      - TOKEN=<Your Discord bot token here>
+      - SPOTIFY_CLIENT_ID=<Your Spotify dev client token here>
+      - SPOTIFY_CLIENT_SECRET=<Your Spotify dev client secret here>
       - COMMAND_PREFIX=!
       - SHARDS=3
     restart: unless-stopped

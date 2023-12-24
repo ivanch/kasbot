@@ -2,13 +2,22 @@
 #### Inspired by a Brazilian DJ
 
 ## Running
+
+### Docker
 If using Docker, just put a token on the `docker-compose.yml` file and run it using `docker-compose up -d`.
 
+### Manual
 If deploying it by hand, you can run:
 ```shell
 dotnet build -c Release -o bin
 dotnet bin/Kasbot.dll
 ```
+
+##### Windows
+If you're using Windows, you will have to download these dependencies and put in the same folder as the executable:
+* [FFmpeg](https://ffmpeg.org/download.html)
+* [opus.dll](win-x64/opus.dll)
+* [libsodium.dll](win-x64/libsodium.dll)
 
 ## Commands
 | Command | Description

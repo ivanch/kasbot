@@ -1,4 +1,0 @@
-discord[voice]
-pynacl
-youtube-dl
-python-dotenv
