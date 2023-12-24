@@ -260,5 +260,25 @@ namespace Kasbot.Services
 
             await CreateConnection(guildId, (Context.User as IVoiceState).VoiceChannel);
         }
+
+        public async Task Shuffle(ulong guildId)
+        {
+            if (!Clients.ContainsKey(guildId))
+                throw new Exception("Bot is not connected!");
+
+            var media = Clients[guildId];
+
+            if (media.Queue.Count == 0)
+                throw new Exception("The queue is empty!");
+
+            var shuffled = media.Queue.Shuffle();
+            var newQueue = new Queue<Media>();
+
+            shuffled.ToList().ForEach(m => newQueue.Enqueue(m));
+
+            media.Queue = newQueue;
+
+            await media.Queue.First().Channel.SendTemporaryMessageAsync(":call_me: Queue shuffled!");
+        }
     }
 }

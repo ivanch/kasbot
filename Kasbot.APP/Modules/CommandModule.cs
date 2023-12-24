@@ -56,6 +56,7 @@ namespace Kasbot.Modules
             await PlayerService.Stop(Context.Guild.Id);
         }
 
+        [Alias("s", "next", "n")]
         [Command("skip", RunMode = RunMode.Async)]
         public async Task SkipAsync()
         {
@@ -73,6 +74,12 @@ namespace Kasbot.Modules
         public async Task RepeatAsync()
         {
             await PlayerService.Repeat(Context.Guild.Id);
+        }
+
+        [Command("shuffle", RunMode = RunMode.Async)]
+        public async Task Shuffle()
+        {
+            await PlayerService.Shuffle(Context.Guild.Id);
         }
     }
 }
