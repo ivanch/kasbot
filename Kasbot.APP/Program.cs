@@ -6,8 +6,10 @@ using Kasbot.App.Services.Internal;
 using Kasbot.Services;
 using Kasbot.Services.Internal;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Kasbot
@@ -41,9 +43,18 @@ namespace Kasbot
         {
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddGrpc();
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Listen(System.Net.IPAddress.Any, 5001, listenOptions =>
+                {
+                    listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1;
+                });
+            });
 
             var app = builder.Build();
             app.MapGrpcService<StatusService>();
+
+
             app.Run(url: "https://localhost:7042");
         }
 
