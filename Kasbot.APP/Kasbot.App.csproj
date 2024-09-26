@@ -28,7 +28,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="SpotifyAPI.Web" Version="7.1.1" />
-    <PackageReference Include="YoutubeExplode" Version="6.4.0" />
+    <PackageReference Include="YoutubeExplode" Version="6.4.1" />
   </ItemGroup>
 
     <ItemGroup>
